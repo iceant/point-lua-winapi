@@ -18,7 +18,16 @@ static const struct luaL_Reg winapilib_f[] = {
 ///////////////////////////////////////////////////////////////////////////////
 //// assembly
 LUALIB_API int luaopen_winapi(lua_State* L){
-    tlsL = L;
+    s_tlsL = L;
+
+    luaL_newmetatable(L, PLW_TMSG);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+
+    luaL_newmetatable(L, PLW_THWND);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+    luaL_setfuncs(L, plw_hwnd_m, 0);
 
     luaL_newlib(L, winapilib_f);
     plw_common_openlib(L);

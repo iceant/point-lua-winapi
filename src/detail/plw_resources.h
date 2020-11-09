@@ -109,12 +109,21 @@ static int plw_LoadCursor(lua_State* L){
     return 1;
 }
 
+static int plw_GetCursorPos(lua_State* L){
+    POINT point;
+    GetCursorPos(&point);
+    lua_newtable(L);
+    LUA_BIND_OBJ_INT(L, point,.,x);
+    LUA_BIND_OBJ_INT(L, point,.,y);
+    return 1;
+}
 ///////////////////////////////////////////////////////////////////////////////
 ////
 #define X(f) {#f, plw_##f}
 static const struct luaL_Reg plw_resource_libf[] = {
         X(LoadIcon),
         X(LoadCursor),
+        X(GetCursorPos),
         {NULL, NULL}
 };
 #undef X

@@ -310,16 +310,17 @@ static int plw_GetWindowLongPtr(lua_State* L){
 }
 
 static LRESULT CALLBACK plw_window_wndproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam){
-    lua_State* L = tlsL;
+    lua_State* L = s_tlsL;
     assert(L);
-
+    int top = lua_gettop(L);
     char buf[256];
     int ret = GetClassName(hwnd, buf, 256);
 
     lua_pushlstring(L, buf, ret);
     lua_gettable(L, LUA_REGISTRYINDEX);
 
-    lua_pushlightuserdata(L, hwnd);
+//    lua_pushlightuserdata(L, hwnd);
+    PLW_PUSH_THWND(L, hwnd);
     lua_pushinteger(L, message);
     lua_pushinteger(L, wParam);
     lua_pushinteger(L, lParam);
@@ -335,7 +336,7 @@ static LRESULT CALLBACK plw_window_wndproc(HWND hwnd, UINT message, WPARAM wPara
             }
         }
     }
-    lua_pop(L, 1);
+    lua_settop(L, top);
 
     return DefWindowProc(hwnd, message, wParam, lParam);
 }

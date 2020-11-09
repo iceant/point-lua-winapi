@@ -80,6 +80,24 @@ void lua_bind_stackdump(lua_State* L, const char* func, const int line);
     }while(0)
 
 
+#define LUA_BIND_CHK_PTR(L, idx, r)                         \
+    do{                                                     \
+        switch(lua_type(L, (idx))){                         \
+            case LUA_TNUMBER:                               \
+                ##r=(void*)luaL_checkinteger(L, (idx));     \
+                break;                                      \
+            case LUA_TSTRING:                               \
+                ##r=(void*)luaL_checkstring(L, (idx));      \
+                break;                                      \
+            case LUA_TUSERDATA:                             \
+            case LUA_TLIGHTUSERDATA:                        \
+                ##r=(void*)lua_touserdata(L, (idx));        \
+                break;                                      \
+            default:                                        \
+                ##r=NULL;                                   \
+        }                                                   \
+    }while(0)
+
 #define LUA_BIND_STACKDUMP(L) lua_bind_stackdump(L, __FILE__, __LINE__)
 
 #endif //INCLUDED_LUA_BIND_H

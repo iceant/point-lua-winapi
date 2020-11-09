@@ -10,6 +10,16 @@
 #include <strsafe.h>
 #endif // INCLUDED_STRSAFE_H
 
+///////////////////////////////////////////////////////////////////////////////
+//// utils
+static void plw_common_check_POINT(lua_State* L, LPPOINT lpPoint){
+    assert(lpPoint);
+    luaL_checktype(L, -1, LUA_TTABLE);
+
+    memset(lpPoint, 0, sizeof(*lpPoint));
+    LUA_BIND_2OBJ_INT(L, -1, lpPoint,->,x);
+    LUA_BIND_2OBJ_INT(L, -1, lpPoint,->,y);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //// functions

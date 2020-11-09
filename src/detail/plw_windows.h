@@ -41,7 +41,7 @@ static int plw_window_FindWindow(lua_State* L){
     int top = lua_gettop(L);
     if(top==0){
         HWND hwnd = FindWindow(NULL, NULL);
-        lua_pushlightuserdata(L, hwnd);
+        PLW_PUSH_THWND(L, hwnd);
         return 1;
     }else if(top==2){
         char* lpClassName = NULL;
@@ -53,7 +53,7 @@ static int plw_window_FindWindow(lua_State* L){
             lpWindowName = (char*)luaL_checkstring(L, 2);
         }
         HWND hwnd = FindWindow(lpClassName, lpWindowName);
-        lua_pushlightuserdata(L, hwnd);
+        PLW_PUSH_THWND(L, hwnd);
         return 1;
     }
     lua_pushnil(L);
@@ -66,11 +66,8 @@ static int plw_window_FindWindow(lua_State* L){
  * */
 static int plw_window_GetWindowText(lua_State* L){
     int top = lua_gettop(L);
-    HWND hwnd = NULL;
-    if(!lua_isnil(L, 1)){
-        hwnd = lua_touserdata(L, 1);
-        luaL_argcheck(L, hwnd!=NULL, 1, "invalid HWND");
-    }
+    plw_HWND_t * hwnd;
+    PLW_CHECK_HWND(L, 1, hwnd);
     int nMaxCount = 256;
     if(top>1){
         luaL_checkany(L, 2);
@@ -79,7 +76,7 @@ static int plw_window_GetWindowText(lua_State* L){
     }
     char * lpString = malloc(nMaxCount);
     memset(lpString, 0, nMaxCount);
-    int ret = GetWindowText(hwnd, lpString, nMaxCount);
+    int ret = GetWindowText(hwnd->hwnd, lpString, nMaxCount);
     if(ret!=0){
         lua_pushlstring(L, lpString, ret);
     }else{
@@ -93,12 +90,9 @@ static int plw_window_GetWindowText(lua_State* L){
  * GetWindowTextLength(hwnd)
  * */
 static int plw_window_GetWindowTextLength(lua_State* L){
-    HWND hwnd = NULL;
-    if(!lua_isnil(L, 1)){
-        hwnd = lua_touserdata(L, 1);
-        luaL_argcheck(L, hwnd!=NULL, 1, "invalid HWND");
-    }
-    int ret = GetWindowTextLength(hwnd);
+    plw_HWND_t * hwnd = NULL;
+    PLW_CHECK_HWND(L, 1, hwnd);
+    int ret = GetWindowTextLength(hwnd->hwnd);
     lua_pushinteger(L, ret);
     return 1;
 }
@@ -121,20 +115,15 @@ static int plw_window_CreateWindow(lua_State* L){
     HWND hwnd = CreateWindow(p.lpClassName, p.lpWindowName, p.dwStyle,
                  p.x, p.y, p.nWidth, p.nHeight,
                  p.hWndParent, p.hMenu, p.hInstance, p.lpParam);
-    if(hwnd==NULL){
-        lua_pushnil(L);
-    }else{
-        SetProp(hwnd, PLW_WINDOW_PROP_LUA_STATE, L);
-        lua_pushlightuserdata(L, hwnd);
-    }
+    PLW_PUSH_THWND(L, hwnd);
     return 1;
 }
 
 static int plw_window_ShowWindow(lua_State* L){
     int top = lua_gettop(L);
-    HWND hwnd = NULL;
+    plw_HWND_t * hwnd = NULL;
     if(!lua_isnil(L, 1)){
-        hwnd = lua_touserdata(L, 1);
+        hwnd = luaL_checkudata(L, 1, PLW_THWND);
         luaL_argcheck(L, hwnd!=NULL, 1, "invalid HWND");
     }
     int nCmdShow = SW_NORMAL;
@@ -142,47 +131,169 @@ static int plw_window_ShowWindow(lua_State* L){
         luaL_checkany(L, 2);
         nCmdShow = luaL_checkinteger(L, 2);
     }
-    BOOL ret = ShowWindow(hwnd, nCmdShow);
+    BOOL ret = ShowWindow(hwnd->hwnd, nCmdShow);
     lua_pushboolean(L, ret);
     return 1;
 }
 
 static int plw_window_UpdateWindow(lua_State* L){
-    HWND hwnd = NULL;
-    if(!lua_isnil(L, 1)){
-        hwnd = lua_touserdata(L, 1);
-        luaL_argcheck(L, hwnd!=NULL, 1, "invalid HWND");
-    }
+    plw_HWND_t * hwnd = NULL;
+    PLW_CHECK_HWND(L, 1, hwnd);
 
-    BOOL ret = UpdateWindow(hwnd);
+    BOOL ret = UpdateWindow(hwnd->hwnd);
     lua_pushboolean(L, ret);
     return 1;
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
-//// extra
-static int plw_window_MessageLoop(lua_State* L){
-    MSG msg;
-    while(GetMessage(&msg, NULL, 0, 0)){
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+//// macros
+static int plw_window_GET_X_LPARAM(lua_State*L){
+    LPARAM lParam = (LPARAM)luaL_checkinteger(L, 1);
+    int ret = GET_X_LPARAM(lParam);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_GET_Y_LPARAM(lua_State*L){
+    LPARAM lParam = (LPARAM)luaL_checkinteger(L, 1);
+    int ret = GET_Y_LPARAM(lParam);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_HIBYTE(lua_State*L){
+    DWORD_PTR w = (DWORD_PTR)luaL_checkinteger(L, 1);
+    int ret = HIBYTE(w);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_HIWORD(lua_State*L){
+    DWORD_PTR w = (DWORD_PTR)luaL_checkinteger(L, 1);
+    int ret = HIWORD(w);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_LOBYTE(lua_State*L){
+    DWORD_PTR w = (DWORD_PTR)luaL_checkinteger(L, 1);
+    int ret = LOBYTE(w);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_LOWORD(lua_State*L){
+    DWORD_PTR w = (DWORD_PTR)luaL_checkinteger(L, 1);
+    int ret = LOWORD(w);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_MAKELONG(lua_State*L){
+    DWORD_PTR a = (DWORD_PTR)luaL_checkinteger(L, 1);
+    DWORD_PTR b = (DWORD_PTR)luaL_checkinteger(L, 2);
+    int ret = MAKELONG(a, b);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_MAKELPARAM(lua_State*L){
+    DWORD_PTR a = (DWORD_PTR)luaL_checkinteger(L, 1);
+    DWORD_PTR b = (DWORD_PTR)luaL_checkinteger(L, 2);
+    LPARAM ret = MAKELPARAM(a, b);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+
+static int plw_window_MAKELRESULT(lua_State*L){
+    DWORD_PTR a = (DWORD_PTR)luaL_checkinteger(L, 1);
+    DWORD_PTR b = (DWORD_PTR)luaL_checkinteger(L, 2);
+    LRESULT ret = MAKELRESULT(a, b);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_MAKEWORD(lua_State*L){
+    DWORD_PTR a = (DWORD_PTR)luaL_checkinteger(L, 1);
+    DWORD_PTR b = (DWORD_PTR)luaL_checkinteger(L, 2);
+    WORD ret = MAKEWORD(a, b);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+static int plw_window_MAKEWPARAM(lua_State*L){
+    DWORD_PTR a = (DWORD_PTR)luaL_checkinteger(L, 1);
+    DWORD_PTR b = (DWORD_PTR)luaL_checkinteger(L, 2);
+    WPARAM ret = MAKEWPARAM(a, b);
+    lua_pushinteger(L, ret);
+    return 1;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+////
+static int plw_window_HWND(lua_State* L){
+    plw_HWND_t * hwnd;
+    PLW_CHECK_HWND(L, 1, hwnd);
+    return 1;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//// metatable
+static int plw_hwnd_tostring(lua_State* L){
+    plw_HWND_t * hwnd;
+    PLW_CHECK_HWND(L, 1, hwnd);
+    if(hwnd!=NULL) {
+        lua_pushfstring(L, "hwnd(%p)", hwnd->hwnd);
+    }else{
+        lua_pushstring(L, "nil");
+    }
+    return 1;
+}
+
+static int plw_hwnd_gc(lua_State* L){
+    plw_HWND_t * hwnd;
+    PLW_CHECK_HWND(L, 1, hwnd);
+    if(hwnd!=NULL && hwnd->hwnd!=NULL) {
+        int ret = GetProp(hwnd->hwnd, "plw_Sendasyncproc");
+        if(ret>0){
+            luaL_unref(L, LUA_REGISTRYINDEX, ret);
+        }
     }
     return 0;
 }
 
+static const struct luaL_Reg plw_hwnd_m[] = {
+        {"__tostring", plw_hwnd_tostring},
+        {"__gc", plw_hwnd_gc},
+        {NULL, NULL}
+};
+
 
 ///////////////////////////////////////////////////////////////////////////////
 ////
+
 #define X(f) {#f, plw_window_##f}
 static const struct luaL_Reg plw_window_libf[] = {
+        X(HWND),
         X(FindWindow),
         X(GetWindowText),
         X(GetWindowTextLength),
         X(CreateWindow),
         X(ShowWindow),
         X(UpdateWindow),
-        X(MessageLoop),
+        X(GET_X_LPARAM),
+        X(GET_Y_LPARAM),
+        X(HIBYTE),
+        X(HIWORD),
+        X(LOBYTE),
+        X(LOWORD),
+        X(MAKELONG),
+        X(MAKELPARAM),
+        X(MAKELRESULT),
+        X(MAKEWORD),
+        X(MAKEWPARAM),
         {NULL, NULL}
 };
 #undef X
